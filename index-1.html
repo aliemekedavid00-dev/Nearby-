@@ -1,0 +1,620 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#F3F5FB">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<title>Nearby</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.css">
+<style>
+  :root {
+    --paper: #F3F5FB; --ink: #12172E; --muted: #5F678A; --line: #DFE3F0;
+    --event: #3B3BF2; --event-soft: #E6E6FE; --deal: #FFC53D; --deal-soft: #FFF3D1;
+  }
+  * { box-sizing: border-box; margin: 0; }
+  html, body { background: var(--paper); color: var(--ink); }
+  body { font-family: "Avenir Next", "Segoe UI", system-ui, -apple-system, "Helvetica Neue", sans-serif; -webkit-text-size-adjust: 100%; }
+  button, input, select, textarea { font: inherit; color: inherit; }
+  button { background: none; border: 0; cursor: pointer; text-align: inherit; }
+  button:disabled { cursor: not-allowed; }
+  button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-visible, .leaflet-marker-icon:focus-visible {
+    outline: 2px solid var(--event); outline-offset: 2px;
+  }
+  [hidden] { display: none !important; }
+
+  #shell { max-width: 430px; min-height: 100vh; min-height: 100dvh; margin: 0 auto; display: flex; flex-direction: column; }
+  header { padding: 24px 20px 16px; display: flex; align-items: center; justify-content: space-between; }
+  h1 { font-size: 32px; font-weight: 800; letter-spacing: -0.03em; line-height: 1.05; }
+  .addBtn { display: flex; align-items: center; gap: 6px; height: 44px; padding: 0 16px; border-radius: 999px; background: var(--ink); color: #fff; font-size: 14px; font-weight: 700; }
+
+  .banner { margin: 0 20px 12px; padding: 12px 14px; border-radius: 14px; font-size: 13px; line-height: 1.45; background: var(--deal-soft); color: var(--ink); }
+  .banner button { font-weight: 700; text-decoration: underline; }
+
+  .filters { padding: 0 20px; display: grid; gap: 12px; }
+  .locRow { display: flex; align-items: center; justify-content: space-between; font-size: 13px; color: var(--muted); }
+  .locRow .l { display: flex; align-items: center; gap: 6px; }
+  .radiusBtn { height: 32px; padding: 0 12px; border-radius: 999px; border: 1px solid var(--line); background: #fff; color: var(--ink); font-size: 13px; font-weight: 600; }
+  .seg { display: flex; padding: 4px; border-radius: 12px; background: #E4E8F4; }
+  .seg button { flex: 1; height: 40px; border-radius: 8px; font-size: 14px; font-weight: 700; color: var(--muted); text-align: center; }
+  .seg button[aria-pressed="true"] { background: #fff; color: var(--ink); box-shadow: 0 1px 2px rgba(18,23,46,.12); }
+  .chips { display: flex; gap: 8px; overflow-x: auto; padding-bottom: 4px; scrollbar-width: none; }
+  .chips::-webkit-scrollbar { display: none; }
+  .chip { flex: none; height: 36px; padding: 0 14px; border-radius: 999px; border: 1px solid var(--line); background: #fff; font-size: 14px; font-weight: 500; white-space: nowrap; }
+  .chip[aria-pressed="true"] { background: var(--ink); border-color: var(--ink); color: #fff; }
+
+  main { flex: 1; padding: 16px 20px 24px; display: grid; gap: 12px; align-content: start; }
+
+  .card { display: flex; overflow: hidden; border-radius: 16px; background: #fff; border: 1px solid var(--line); }
+  .cardMain { display: flex; flex: 1; min-width: 0; }
+  .stub { flex: none; width: 76px; padding: 12px 6px; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; }
+  .stub.wide { width: 92px; }
+  .stub.ev { background: var(--event); color: #fff; border-right: 2px dashed rgba(255,255,255,.55); }
+  .stub.dl { background: var(--deal); color: var(--ink); border-right: 2px dashed rgba(18,23,46,.35); }
+  .stub .big { font-weight: 800; line-height: 1; letter-spacing: -0.02em; max-width: 100%; overflow-wrap: anywhere; }
+  .stub .small { font-size: 12px; font-weight: 600; margin-top: 4px; line-height: 1.15; overflow-wrap: anywhere; }
+  .body { flex: 1; min-width: 0; padding: 12px; }
+  .title { font-size: 16px; font-weight: 700; line-height: 1.3; overflow-wrap: anywhere; }
+  .meta { margin-top: 6px; display: grid; gap: 4px; font-size: 13px; color: var(--muted); }
+  .meta div { display: flex; align-items: center; gap: 6px; min-width: 0; }
+  .meta span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .tags { margin-top: 8px; display: flex; align-items: center; gap: 8px; font-size: 12px; }
+  .tags b { font-weight: 600; }
+  .pill { padding: 2px 8px; border-radius: 999px; font-weight: 500; }
+  .pill.event { background: var(--event-soft); }
+  .pill.deal { background: var(--deal-soft); }
+  .heart { flex: none; align-self: flex-start; width: 44px; height: 44px; margin: 4px 2px 0 0; display: flex; align-items: center; justify-content: center; color: var(--muted); }
+  .heart[aria-pressed="true"] { color: var(--event); }
+
+  .empty { padding: 24px; text-align: center; border-radius: 16px; border: 1.5px dashed var(--line); background: #fff; }
+  .empty h3 { font-size: 17px; font-weight: 700; }
+  .empty p { margin-top: 4px; font-size: 14px; color: var(--muted); }
+  .empty button { margin-top: 16px; height: 40px; padding: 0 16px; border-radius: 999px; background: var(--ink); color: #fff; font-size: 14px; font-weight: 700; }
+  .hint { font-size: 14px; color: var(--muted); }
+
+  #mapPane { padding: 16px 20px 0; }
+  #map { height: 52vh; min-height: 320px; border-radius: 16px; border: 1px solid var(--line); overflow: hidden; background: #E9EDF7; }
+  .mapfail { padding: 24px; font-size: 14px; color: var(--muted); }
+  .pin { display: block; width: 22px; height: 22px; border-radius: 50%; margin: 3px; border: 3px solid #fff; box-shadow: 0 1px 4px rgba(18,23,46,.4); }
+  .pin.ev { background: var(--event); }
+  .pin.dl { background: var(--deal); border-color: var(--ink); }
+  .pin.sel { transform: scale(1.35); box-shadow: 0 0 0 3px rgba(18,23,46,.5); }
+  #mapPreview { margin-top: 12px; }
+
+  nav { position: sticky; bottom: 0; display: flex; background: #fff; border-top: 1px solid var(--line); padding-bottom: env(safe-area-inset-bottom); }
+  nav button { flex: 1; height: 60px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; font-size: 12px; font-weight: 600; color: var(--muted); position: relative; text-align: center; }
+  nav button[aria-current="page"] { color: var(--event); }
+  .badge { position: absolute; top: 6px; left: calc(50% + 6px); min-width: 18px; height: 18px; padding: 0 5px; border-radius: 999px; background: var(--event); color: #fff; font-size: 11px; font-weight: 700; display: flex; align-items: center; justify-content: center; }
+
+  .backdrop { position: fixed; inset: 0; z-index: 1000; display: flex; align-items: flex-end; justify-content: center; background: rgba(18,23,46,.5); }
+  .sheet { width: 100%; max-width: 430px; max-height: 92vh; overflow-y: auto; background: var(--paper); border-radius: 24px 24px 0 0; padding: 20px 20px calc(20px + env(safe-area-inset-bottom)); animation: sheetUp .22s ease-out; }
+  .sheet:focus { outline: none; }
+  @keyframes sheetUp { from { transform: translateY(24px); opacity: 0; } to { transform: none; opacity: 1; } }
+  @media (prefers-reduced-motion: reduce) { .sheet { animation: none; } }
+  .sheetTop { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
+  .closeBtn { flex: none; width: 44px; height: 44px; border-radius: 50%; background: #fff; border: 1px solid var(--line); display: flex; align-items: center; justify-content: center; }
+  .sheet h2 { font-size: 24px; font-weight: 800; letter-spacing: -0.02em; line-height: 1.15; margin-top: 16px; overflow-wrap: anywhere; }
+  .sheet .stubBox { display: flex; overflow: hidden; border-radius: 16px; min-height: 84px; }
+  .facts { margin-top: 12px; display: grid; gap: 8px; font-size: 15px; }
+  .facts div { display: flex; align-items: center; gap: 8px; }
+  .facts svg { color: var(--muted); flex: none; }
+  .blurb { margin-top: 16px; font-size: 15px; line-height: 1.55; color: var(--muted); max-width: 60ch; overflow-wrap: anywhere; }
+  .actions { margin-top: 24px; display: flex; gap: 12px; }
+  .actions button { flex: 1; height: 50px; border-radius: 12px; display: flex; align-items: center; justify-content: center; gap: 8px; font-size: 15px; font-weight: 700; text-align: center; }
+  .btnGhost { background: #fff; border: 1px solid var(--line); }
+  .btnGhost[aria-pressed="true"] { background: var(--event-soft); border-color: var(--event); color: var(--event); }
+  .btnDark { background: var(--ink); color: #fff; }
+
+  .form { margin-top: 16px; display: grid; gap: 16px; }
+  .form label { display: block; font-size: 13px; font-weight: 600; margin-bottom: 6px; }
+  .form input, .form select, .form textarea { width: 100%; min-height: 46px; padding: 0 12px; border-radius: 12px; border: 1px solid var(--line); background: #fff; font-size: 16px; }
+  .form textarea { padding: 12px; min-height: 84px; resize: vertical; }
+  .form .row { display: flex; gap: 12px; }
+  .form .row > div { flex: 1; min-width: 0; }
+  .form .note { font-size: 12px; color: var(--muted); margin-top: 6px; line-height: 1.4; }
+  .formErr { font-size: 14px; color: #B3261E; font-weight: 600; }
+  .pubBtn { margin-top: 24px; width: 100%; height: 52px; border-radius: 12px; background: var(--event); color: #fff; font-size: 16px; font-weight: 700; text-align: center; }
+  .pubBtn:disabled { background: #A9AEC9; }
+
+  #toast { position: fixed; z-index: 1100; left: 50%; bottom: 84px; transform: translateX(-50%); max-width: 90vw; padding: 10px 18px; border-radius: 999px; background: var(--ink); color: #fff; font-size: 14px; font-weight: 600; }
+</style>
+</head>
+<body>
+
+<!--
+  SETUP (only needed to save real listings for everyone)
+  1. Create a free project at supabase.com and run the SQL from supabase-setup.sql in its SQL Editor.
+  2. In Supabase, open the project's Connect dialog (or Settings > API Keys) and copy the Project URL and the publishable key (starts with sb_publishable_).
+  3. Paste both into CONFIG below.
+  Without them, the app runs in demo mode with sample listings that are not saved.
+-->
+
+<div id="shell">
+  <header>
+    <h1 id="title">Nearby</h1>
+    <button class="addBtn" data-act="add"></button>
+  </header>
+  <div id="banner"></div>
+  <div id="filters" class="filters"></div>
+  <main id="content"></main>
+  <section id="mapPane" hidden>
+    <div id="map"></div>
+    <div id="mapPreview"></div>
+  </section>
+  <nav id="tabs" aria-label="Main"></nav>
+</div>
+<div id="sheet"></div>
+<div id="toast" role="status" hidden></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<script>
+"use strict";
+
+/* ---------- Config ---------- */
+const CONFIG = {
+  SUPABASE_URL: "https://exhbtxcffcbjrrqzfsyt.supabase.co",
+  SUPABASE_KEY: "sb_publishable_Q_efoxMz4wmroFazso_ZUw_Tey6UYVv",
+};
+const LIVE = Boolean(CONFIG.SUPABASE_URL && CONFIG.SUPABASE_KEY);
+
+const CATEGORIES = ["Food", "Music", "Sports", "Arts", "Community", "Shopping", "Services", "Fun", "Wellness"];
+const RADII = [1, 3, 5, 10, 25];
+const FALLBACK_CENTER = { lat: 40.7128, lng: -74.006 };
+
+/* ---------- Small helpers ---------- */
+const $ = (s) => document.querySelector(s);
+const esc = (s) =>
+  String(s == null ? "" : s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+
+const store = {
+  mem: {},
+  get(k, d) {
+    try { const v = localStorage.getItem(k); return v ? JSON.parse(v) : d; } catch (e) { return k in this.mem ? this.mem[k] : d; }
+  },
+  set(k, v) {
+    this.mem[k] = v;
+    try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) { /* storage unavailable */ }
+  },
+};
+
+const ICONS = {
+  pin: '<path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/>',
+  clock: '<circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>',
+  heart: '<path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z"/>',
+  plus: '<path d="M5 12h14"/><path d="M12 5v14"/>',
+  list: '<line x1="8" x2="21" y1="6" y2="6"/><line x1="8" x2="21" y1="12" y2="12"/><line x1="8" x2="21" y1="18" y2="18"/><line x1="3" x2="3.01" y1="6" y2="6"/><line x1="3" x2="3.01" y1="12" y2="12"/><line x1="3" x2="3.01" y1="18" y2="18"/>',
+  map: '<polygon points="3 6 9 3 15 6 21 3 21 18 15 21 9 18 3 21"/><line x1="9" x2="9" y1="3" y2="18"/><line x1="15" x2="15" y1="6" y2="21"/>',
+  bookmark: '<path d="m19 21-7-4-7 4V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v16z"/>',
+  x: '<path d="M18 6 6 18"/><path d="m6 6 12 12"/>',
+  nav: '<polygon points="3 11 22 2 13 21 11 13 3 11"/>',
+  locate: '<circle cx="12" cy="12" r="3"/><line x1="12" x2="12" y1="2" y2="6"/><line x1="12" x2="12" y1="18" y2="22"/><line x1="2" x2="6" y1="12" y2="12"/><line x1="18" x2="22" y1="12" y2="12"/>',
+};
+const icon = (n, size = 16, fill = false) =>
+  `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="${fill ? "currentColor" : "none"}" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ICONS[n]}</svg>`;
+
+function haversine(a, b) {
+  const R = 6371, rad = Math.PI / 180;
+  const dLat = (b.lat - a.lat) * rad, dLng = (b.lng - a.lng) * rad;
+  const h = Math.sin(dLat / 2) ** 2 + Math.cos(a.lat * rad) * Math.cos(b.lat * rad) * Math.sin(dLng / 2) ** 2;
+  return 2 * R * Math.asin(Math.sqrt(h));
+}
+const fmtKm = (km) => (km < 1 ? `${Math.round(km * 10) * 100} m` : `${km.toFixed(1)} km`);
+const fmtTime = (iso) => new Date(iso).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
+const dayParts = (iso) => {
+  const d = new Date(iso);
+  return {
+    label: d.toDateString() === new Date().toDateString() ? "Today" : d.toLocaleDateString([], { weekday: "short" }),
+    num: d.getDate(),
+    long: d.toLocaleDateString([], { weekday: "long", month: "short", day: "numeric" }),
+  };
+};
+const whenText = (it) => (it.type === "event" ? `${dayParts(it.starts_at).label}, ${fmtTime(it.starts_at)}` : it.valid_until || "Limited time");
+const isoLocal = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+
+/* ---------- State ---------- */
+const state = {
+  tab: "nearby", type: "all", cat: "All", radius: 5,
+  saved: new Set(store.get("saved", [])),
+  listings: [], loading: true, error: "",
+  loc: { ...FALLBACK_CENTER, ok: false },
+  openId: null, mapSel: null, submitOpen: false, form: null, publishing: false, formError: "",
+};
+
+/* ---------- Location ---------- */
+function getLocation() {
+  return new Promise((resolve) => {
+    try {
+      if (!navigator.geolocation) return resolve(null);
+      navigator.geolocation.getCurrentPosition(
+        (p) => resolve({ lat: p.coords.latitude, lng: p.coords.longitude }),
+        () => resolve(null),
+        { enableHighAccuracy: false, timeout: 8000, maximumAge: 300000 }
+      );
+    } catch (e) { resolve(null); }
+  });
+}
+
+/* ---------- Data ---------- */
+function seedListings(c) {
+  const at = (km, ang) => {
+    const a = (ang * Math.PI) / 180;
+    return { lat: c.lat + (km * Math.cos(a)) / 111, lng: c.lng + (km * Math.sin(a)) / (111 * Math.cos((c.lat * Math.PI) / 180)) };
+  };
+  const ev = (id, title, category, place, km, ang, day, hh, mm, blurb) => {
+    const d = new Date(); d.setDate(d.getDate() + day); d.setHours(hh, mm, 0, 0);
+    return { id, type: "event", title, category, place, ...at(km, ang), starts_at: d.toISOString(), blurb };
+  };
+  const dl = (id, title, category, place, km, ang, offer, valid, blurb) =>
+    ({ id, type: "deal", title, category, place, ...at(km, ang), offer, valid_until: valid, blurb });
+  return [
+    ev("e1", "Board game night", "Community", "Dice & Draft", 0.9, 200, 0, 18, 30, "Drop in solo or bring friends. The café keeps a shelf of games to borrow."),
+    ev("e2", "Open-mic night", "Music", "The Blue Kettle", 1.2, 320, 1, 19, 0, "Sign up at the door for a five-minute slot, or just come to listen."),
+    ev("e3", "Saturday farmers' market", "Food", "Riverside lot", 0.6, 100, 2, 8, 0, "Produce, bread, and flowers from growers within an hour's drive."),
+    ev("e4", "Sunrise 5K fun run", "Sports", "Park north gate", 2.1, 250, 3, 6, 30, "A relaxed loop for all paces. Meet at the north gate. No sign-up needed."),
+    ev("e5", "Street art walk", "Arts", "Mill Street", 1.8, 40, 4, 17, 30, "A guided 90-minute walk past the neighborhood's newest murals."),
+    ev("e6", "Courtyard jazz night", "Music", "Alder Hall courtyard", 3.4, 150, 2, 20, 0, "A local quartet plays outdoors. Bring a jacket. Seating is first come."),
+    dl("d1", "Iced coffee, two for one", "Food", "Morning Bean", 0.4, 10, "2-for-1", "Until Friday", "Order any iced coffee before 2 pm and get a second one free."),
+    dl("d2", "Haircuts 30% off", "Services", "Cutline Barbers", 1.5, 280, "30% off", "Until Sunday", "Weekday appointments only. Book by phone or walk in."),
+    dl("d3", "Free dessert with any entrée", "Food", "Casa Lima", 2.0, 170, "Free dessert", "This week", "Show this listing to your server when you order."),
+    dl("d4", "Half-price bowling", "Fun", "Pin Palace", 4.2, 60, "Half price", "Tuesday nights", "Half off lane rental after 6 pm every Tuesday."),
+    dl("d5", "Student discount on books", "Shopping", "Corner Page Books", 1.1, 220, "15% off", "All month", "Show a valid student ID at the counter."),
+    dl("d6", "Free first yoga class", "Wellness", "Stillwater Studio", 2.7, 330, "Free class", "New members", "Mats are provided. Arrive ten minutes early to sign in."),
+  ];
+}
+
+// New publishable keys (sb_publishable_...) go in the apikey header only. Older JWT-style anon keys also need Authorization.
+const sbHeaders = () => {
+  const h = { apikey: CONFIG.SUPABASE_KEY };
+  if (CONFIG.SUPABASE_KEY.startsWith("eyJ")) h.Authorization = `Bearer ${CONFIG.SUPABASE_KEY}`;
+  return h;
+};
+
+async function loadListings() {
+  state.error = "";
+  try {
+    if (LIVE) {
+      const res = await fetch(`${CONFIG.SUPABASE_URL}/rest/v1/listings?select=*&order=created_at.desc&limit=500`, { headers: sbHeaders() });
+      if (!res.ok) throw new Error("load failed");
+      state.listings = await res.json();
+    } else if (!state.listings.length) {
+      state.listings = seedListings(state.loc);
+    }
+  } catch (e) {
+    state.error = "We couldn't load listings. Check your connection and try again.";
+  }
+}
+
+async function saveListing(item) {
+  if (!LIVE) {
+    state.listings.unshift({ ...item, id: `u${Date.now()}` });
+    return;
+  }
+  const res = await fetch(`${CONFIG.SUPABASE_URL}/rest/v1/listings`, {
+    method: "POST",
+    headers: { ...sbHeaders(), "Content-Type": "application/json", Prefer: "return=representation" },
+    body: JSON.stringify(item),
+  });
+  if (!res.ok) throw new Error("save failed");
+  const rows = await res.json();
+  state.listings.unshift(rows[0]);
+}
+
+async function geocode(q) {
+  const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&limit=1&q=${encodeURIComponent(q)}`);
+  if (!res.ok) throw new Error("geocode failed");
+  const rows = await res.json();
+  return rows.length ? { lat: parseFloat(rows[0].lat), lng: parseFloat(rows[0].lon) } : null;
+}
+
+/* ---------- Derived lists ---------- */
+function derive() {
+  const start = new Date(); start.setHours(0, 0, 0, 0);
+  const all = state.listings
+    .filter((l) => l.type !== "event" || new Date(l.starts_at) >= start)
+    .map((l) => ({ ...l, _km: haversine(state.loc, l) }));
+  const scoped = all
+    .filter((l) => l._km <= state.radius && (state.cat === "All" || l.category === state.cat))
+    .sort((a, b) => a._km - b._km);
+  return {
+    all,
+    counts: {
+      all: scoped.length,
+      event: scoped.filter((l) => l.type === "event").length,
+      deal: scoped.filter((l) => l.type === "deal").length,
+    },
+    visible: scoped.filter((l) => state.type === "all" || l.type === state.type),
+  };
+}
+
+/* ---------- Templates ---------- */
+function stub(it, wide) {
+  let big, small, cls, size;
+  if (it.type === "event") {
+    const d = dayParts(it.starts_at);
+    big = String(d.num); small = d.label; cls = "ev"; size = 30;
+  } else {
+    const o = it.offer || "Deal";
+    const i = o.indexOf(" ");
+    big = i < 0 ? o : o.slice(0, i);
+    small = i < 0 ? "deal" : o.slice(i + 1);
+    cls = "dl";
+    size = big.length <= 4 ? 26 : big.length <= 7 ? 17 : 13;
+  }
+  return `<div class="stub ${cls}${wide ? " wide" : ""}"><span class="big" style="font-size:${size}px">${esc(big)}</span><span class="small">${esc(small)}</span></div>`;
+}
+
+function card(it) {
+  const s = state.saved.has(it.id);
+  return `<div class="card">
+    <button class="cardMain" data-open="${esc(it.id)}" aria-label="Open ${esc(it.title)}">
+      ${stub(it)}
+      <div class="body">
+        <div class="title">${esc(it.title)}</div>
+        <div class="meta">
+          <div>${icon("pin", 13)}<span>${esc(it.place)}</span></div>
+          <div>${icon("clock", 13)}<span>${esc(whenText(it))}</span></div>
+        </div>
+        <div class="tags"><b>${fmtKm(it._km)} away</b><span class="pill ${it.type}">${esc(it.category)}</span></div>
+      </div>
+    </button>
+    <button class="heart" data-save="${esc(it.id)}" aria-pressed="${s}" aria-label="${s ? "Remove from saved" : "Save"}: ${esc(it.title)}">${icon("heart", 20, s)}</button>
+  </div>`;
+}
+
+function emptyBox(title, body, action, act) {
+  return `<div class="empty"><h3>${esc(title)}</h3><p>${esc(body)}</p>${action ? `<button data-act="${act}">${esc(action)}</button>` : ""}</div>`;
+}
+
+/* ---------- Render ---------- */
+function render() {
+  const d = derive();
+  const t = state.tab;
+
+  $("#title").textContent = t === "nearby" ? "Nearby" : t === "map" ? "Map" : "Saved";
+  document.querySelector(".addBtn").innerHTML = `${icon("plus", 18)}Add listing`;
+
+  // Banners
+  let b = "";
+  if (!state.loading && !state.loc.ok) {
+    b += `<div class="banner">Location is off, so you're seeing a sample area. Turn it on in your browser settings, then <button data-act="retry">retry</button>.</div>`;
+  }
+  if (!LIVE) {
+    b += `<div class="banner">Demo mode: these listings are samples and won't be saved. Connect a database to go live.</div>`;
+  }
+  $("#banner").innerHTML = b;
+
+  // Filters
+  const showFilters = t !== "saved";
+  const f = $("#filters");
+  f.hidden = !showFilters;
+  if (showFilters) {
+    const seg = [["all", "All", d.counts.all], ["event", "Events", d.counts.event], ["deal", "Deals", d.counts.deal]];
+    f.innerHTML = `
+      <div class="locRow"><div class="l">${icon("locate", 15)}<span>${state.loc.ok ? "Using your current location" : "Using a sample location"}</span></div>
+        <button class="radiusBtn" data-act="radius" aria-label="Search radius ${state.radius} kilometers. Tap to change.">Within ${state.radius} km</button></div>
+      <div class="seg">${seg.map(([k, l, n]) => `<button data-act="type" data-val="${k}" aria-pressed="${state.type === k}">${l} ${n}</button>`).join("")}</div>
+      <div class="chips">${["All", ...CATEGORIES].map((c) => `<button class="chip" data-act="cat" data-val="${c}" aria-pressed="${state.cat === c}">${c}</button>`).join("")}</div>`;
+  }
+
+  // Content
+  const content = $("#content");
+  content.hidden = t === "map";
+  $("#mapPane").hidden = t !== "map";
+  if (t === "nearby") {
+    if (state.loading) content.innerHTML = `<p class="hint">Finding listings near you…</p>`;
+    else if (state.error) content.innerHTML = emptyBox("Something went wrong", state.error, "Try again", "reload");
+    else if (!d.visible.length) content.innerHTML = emptyBox("Nothing in this range", "Try a wider radius or a different category.", "Reset filters", "reset");
+    else content.innerHTML = d.visible.map(card).join("");
+  } else if (t === "saved") {
+    const items = d.all.filter((l) => state.saved.has(l.id)).sort((a, b) => a._km - b._km);
+    content.innerHTML = items.length
+      ? items.map(card).join("")
+      : emptyBox("Nothing saved yet", "Tap the heart on any listing to keep it here.", "Browse nearby", "browse");
+  }
+
+  // Tabs
+  const tabs = [["nearby", "Nearby", "list"], ["map", "Map", "map"], ["saved", "Saved", "bookmark"]];
+  $("#tabs").innerHTML = tabs.map(([k, l, ic]) =>
+    `<button data-act="tab" data-val="${k}" ${t === k ? 'aria-current="page"' : ""}>${icon(ic, 22)}${l}${k === "saved" && state.saved.size ? `<span class="badge">${state.saved.size}</span>` : ""}</button>`
+  ).join("");
+
+  // Map
+  if (t === "map") {
+    updateMap(d.visible);
+    const sel = d.visible.find((l) => l.id === state.mapSel);
+    $("#mapPreview").innerHTML = sel ? card(sel) : `<p class="hint">Tap a pin to preview it. Blue pins are events and yellow pins are deals.</p>`;
+  }
+
+  renderSheet(d);
+}
+
+/* ---------- Map ---------- */
+let map = null, layer = null, lastFit = "";
+function updateMap(items) {
+  if (!window.L) { $("#map").innerHTML = `<p class="mapfail">The map couldn't load. Check your connection and reload.</p>`; return; }
+  if (!map) {
+    map = L.map("map").setView([state.loc.lat, state.loc.lng], 13);
+    L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", { maxZoom: 19, attribution: "&copy; OpenStreetMap contributors" }).addTo(map);
+    layer = L.layerGroup().addTo(map);
+  }
+  map.invalidateSize();
+  layer.clearLayers();
+  const ring = L.circle([state.loc.lat, state.loc.lng], { radius: state.radius * 1000, color: "#3B3BF2", weight: 1, dashArray: "4 4", fillOpacity: 0.05 }).addTo(layer);
+  L.circleMarker([state.loc.lat, state.loc.lng], { radius: 7, color: "#fff", weight: 2, fillColor: "#12172E", fillOpacity: 1 }).addTo(layer);
+  items.forEach((it) => {
+    const icn = L.divIcon({ className: "", html: `<span class="pin ${it.type === "event" ? "ev" : "dl"}${it.id === state.mapSel ? " sel" : ""}"></span>`, iconSize: [28, 28], iconAnchor: [14, 14] });
+    L.marker([it.lat, it.lng], { icon: icn, title: it.title, alt: it.title }).on("click", () => { state.mapSel = it.id; render(); }).addTo(layer);
+  });
+  const key = `${state.radius}|${state.loc.lat}|${state.loc.lng}`;
+  if (key !== lastFit) { map.fitBounds(ring.getBounds(), { padding: [12, 12] }); lastFit = key; }
+}
+
+/* ---------- Sheets ---------- */
+function newForm() {
+  return { type: "event", title: "", place: "", address: "", category: "Food", date: isoLocal(new Date()), time: "18:00", offer: "", until: "", blurb: "" };
+}
+const formOk = (f) => f && f.title.trim() && f.place.trim() && (f.type === "event" ? f.date && f.time : f.offer.trim());
+
+function renderSheet(d) {
+  const el = $("#sheet");
+  let html = "";
+  if (state.openId) {
+    const it = d.all.find((l) => l.id === state.openId);
+    if (it) {
+      const s = state.saved.has(it.id);
+      html = `<div class="backdrop" data-act="backdrop"><div class="sheet" role="dialog" aria-modal="true" aria-label="${esc(it.title)}" tabindex="-1">
+        <div class="sheetTop"><div class="stubBox">${stub(it, true)}</div><button class="closeBtn" data-act="close" aria-label="Close">${icon("x", 20)}</button></div>
+        <h2>${esc(it.title)}</h2>
+        <div class="facts">
+          <div>${icon("pin", 16)}<span>${esc(it.place)}, ${fmtKm(it._km)} away</span></div>
+          <div>${icon("clock", 16)}<span>${esc(it.type === "event" ? `${dayParts(it.starts_at).long}, ${fmtTime(it.starts_at)}` : it.valid_until || "Limited time")}</span></div>
+        </div>
+        ${it.blurb ? `<p class="blurb">${esc(it.blurb)}</p>` : ""}
+        <div class="actions">
+          <button class="btnGhost" data-save="${esc(it.id)}" aria-pressed="${s}">${icon("heart", 18, s)}${s ? "Saved" : "Save"}</button>
+          <button class="btnDark" data-act="directions" data-val="${it.lat},${it.lng}">${icon("nav", 18)}Get directions</button>
+        </div></div></div>`;
+    }
+  } else if (state.submitOpen) {
+    const f = state.form;
+    const ev = f.type === "event";
+    html = `<div class="backdrop" data-act="backdrop"><div class="sheet" role="dialog" aria-modal="true" aria-label="Add a listing" tabindex="-1">
+      <div class="sheetTop"><h2 style="margin-top:0">Add a listing</h2><button class="closeBtn" data-act="close" aria-label="Close">${icon("x", 20)}</button></div>
+      <div class="seg" style="margin-top:16px">
+        <button data-act="formtype" data-val="event" aria-pressed="${ev}">Event</button>
+        <button data-act="formtype" data-val="deal" aria-pressed="${!ev}">Deal</button>
+      </div>
+      <div class="form">
+        <div><label for="f-title">Title</label><input id="f-title" data-f="title" maxlength="80" value="${esc(f.title)}" placeholder="${ev ? "Neighborhood trivia night" : "20% off lunch specials"}"></div>
+        <div><label for="f-place">Place name</label><input id="f-place" data-f="place" maxlength="80" value="${esc(f.place)}" placeholder="Where is it?"></div>
+        <div><label for="f-address">Address (optional)</label><input id="f-address" data-f="address" maxlength="120" value="${esc(f.address)}" placeholder="12 Main St, your city">
+          <p class="note">Leave this blank to place the listing at your current location.</p></div>
+        <div><label for="f-cat">Category</label><select id="f-cat" data-f="category">${CATEGORIES.map((c) => `<option${c === f.category ? " selected" : ""}>${c}</option>`).join("")}</select></div>
+        ${ev
+          ? `<div class="row"><div><label for="f-date">Date</label><input id="f-date" type="date" data-f="date" value="${esc(f.date)}"></div><div><label for="f-time">Start time</label><input id="f-time" type="time" data-f="time" value="${esc(f.time)}"></div></div>`
+          : `<div class="row"><div><label for="f-offer">Offer</label><input id="f-offer" data-f="offer" maxlength="14" value="${esc(f.offer)}" placeholder="30% off"></div><div><label for="f-until">Valid until</label><input id="f-until" data-f="until" maxlength="40" value="${esc(f.until)}" placeholder="Until Sunday"></div></div>`}
+        <div><label for="f-blurb">Details (optional)</label><textarea id="f-blurb" data-f="blurb" maxlength="200" placeholder="Anything people should know">${esc(f.blurb)}</textarea></div>
+        <div class="formErr" id="formErr" role="alert">${esc(state.formError)}</div>
+      </div>
+      <button class="pubBtn" id="pubBtn" data-act="publish" ${formOk(f) && !state.publishing ? "" : "disabled"}>${state.publishing ? "Publishing…" : "Publish listing"}</button>
+    </div></div>`;
+  }
+  const had = el.firstChild;
+  el.innerHTML = html;
+  if (html && !had) { const s = el.querySelector(".sheet"); if (s) s.focus(); }
+}
+
+/* ---------- Actions ---------- */
+let toastTimer;
+function toast(msg) {
+  const t = $("#toast");
+  t.textContent = msg; t.hidden = false;
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => { t.hidden = true; }, 2200);
+}
+
+function toggleSave(id) {
+  const has = state.saved.has(id);
+  if (has) state.saved.delete(id); else state.saved.add(id);
+  store.set("saved", [...state.saved]);
+  toast(has ? "Removed from saved." : "Saved.");
+  render();
+}
+
+async function publish() {
+  const f = state.form;
+  if (!formOk(f) || state.publishing) return;
+  state.publishing = true; state.formError = "";
+  renderSheetOnly();
+  try {
+    let pos;
+    if (f.address.trim()) {
+      pos = await geocode(f.address.trim());
+      if (!pos) throw new Error("We couldn't find that address. Check the spelling, or leave it blank to use your current location.");
+    } else if (state.loc.ok) {
+      pos = { lat: state.loc.lat, lng: state.loc.lng };
+    } else {
+      throw new Error("Enter an address, or turn on location so we can place your listing.");
+    }
+    const ev = f.type === "event";
+    const item = {
+      type: f.type, title: f.title.trim(), category: f.category, place: f.place.trim(),
+      lat: pos.lat, lng: pos.lng,
+      starts_at: ev ? new Date(`${f.date}T${f.time}`).toISOString() : null,
+      offer: ev ? null : f.offer.trim(),
+      valid_until: ev ? null : f.until.trim() || "Limited time",
+      blurb: f.blurb.trim() || null,
+    };
+    await saveListing(item);
+    state.submitOpen = false; state.form = null; state.publishing = false;
+    state.tab = "nearby"; state.type = "all"; state.cat = "All"; state.radius = Math.max(state.radius, 5);
+    toast("Listing published.");
+    render();
+  } catch (e) {
+    state.publishing = false;
+    state.formError = e.message && !/failed/.test(e.message) ? e.message : "We couldn't publish your listing. Check your connection and try again.";
+    renderSheetOnly();
+  }
+}
+function renderSheetOnly() { renderSheet(derive()); }
+
+async function retryLocation() {
+  state.loading = true; render();
+  const l = await getLocation();
+  state.loc = l ? { ...l, ok: true } : { ...FALLBACK_CENTER, ok: false };
+  if (!LIVE) state.listings = [];
+  await loadListings();
+  state.loading = false; render();
+}
+
+document.addEventListener("click", (e) => {
+  const el = e.target.closest("[data-act],[data-open],[data-save]");
+  if (!el) return;
+  if (el.dataset.open) { state.openId = el.dataset.open; render(); return; }
+  if (el.dataset.save) { toggleSave(el.dataset.save); return; }
+  const v = el.dataset.val;
+  switch (el.dataset.act) {
+    case "tab": state.tab = v; render(); window.scrollTo(0, 0); break;
+    case "type": state.type = v; render(); break;
+    case "cat": state.cat = v; render(); break;
+    case "radius": state.radius = RADII[(RADII.indexOf(state.radius) + 1) % RADII.length]; render(); break;
+    case "reset": state.type = "all"; state.cat = "All"; state.radius = 25; render(); break;
+    case "browse": state.tab = "nearby"; render(); break;
+    case "add": state.form = newForm(); state.formError = ""; state.submitOpen = true; render(); break;
+    case "close": state.openId = null; state.submitOpen = false; state.form = null; render(); break;
+    case "backdrop": if (e.target === el) { state.openId = null; state.submitOpen = false; state.form = null; render(); } break;
+    case "formtype": state.form.type = v; state.formError = ""; render(); break;
+    case "publish": publish(); break;
+    case "directions": window.open(`https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(v)}`, "_blank", "noopener"); break;
+    case "retry": retryLocation(); break;
+    case "reload": state.loading = true; render(); loadListings().then(() => { state.loading = false; render(); }); break;
+  }
+});
+
+document.addEventListener("input", (e) => {
+  const k = e.target.dataset && e.target.dataset.f;
+  if (!k || !state.form) return;
+  state.form[k] = e.target.value;
+  const btn = $("#pubBtn");
+  if (btn) btn.disabled = !formOk(state.form) || state.publishing;
+});
+
+document.addEventListener("keydown", (e) => {
+  if (e.key === "Escape" && (state.openId || state.submitOpen)) {
+    state.openId = null; state.submitOpen = false; state.form = null; render();
+  }
+});
+
+/* ---------- Start ---------- */
+(async function init() {
+  render();
+  const l = await getLocation();
+  state.loc = l ? { ...l, ok: true } : { ...FALLBACK_CENTER, ok: false };
+  await loadListings();
+  state.loading = false;
+  render();
+})();
+</script>
+</body>
+</html>
